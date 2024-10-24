@@ -1,20 +1,42 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { updateUsername } from '../redux/actions/profile.actions.js';
 import { isValidName } from "../utils/regex.jsx";
 import '../styles/edite.css';
 import { handleSubmitUsername } from '../Service/api-clients.js';
+import { fetchUserProfile } from '../Service/api-clients';
 
-function User ({onUsernameChange}) { // Ajout de la prop onUsernameChange
-    const userData = useSelector((state) => state.user.userData);
-    const token = useSelector((state) => state.auth.token); // Assurez-vous de récupérer le token ici
+function User({ onUsernameChange }) {
+    const userData = useSelector((state) => state.user.userData);  // Données de l'utilisateur récupérées du store Redux
+    const token = useSelector((state) => state.auth.token);
     const [display, setDisplay] = useState(true);
-    const [userName, setUserName] = useState(userData?.username || ''); // Initialiser avec le nom d'utilisateur actuel
+    const [userName, setUserName] = useState('');   
+    const [firstName, setFirstName] = useState(''); 
+    const [lastName, setLastName] = useState('');  
     const [errorMessage, setErrorMessage] = useState('');
     const dispatch = useDispatch();
 
+    // Charger les données utilisateur
+    useEffect(() => {
+        if (token) {
+            fetchUserProfile(token)
+                .then((data) => {
+                    if (data && data.body) {
+                        setFirstName(data.body.firstName);
+                        setLastName(data.body.lastName);
+                        setUserName(data.body.userName);  // Initialiser UserName avec les données récupérées
+                        dispatch(updateUsername(data.body.userName)); // Mettre à jour dans le store Redux
+                    }
+                })
+                .catch((err) => {
+                    console.error("Erreur lors du chargement du profil:", err);
+                    setErrorMessage('Erreur lors du chargement du profil.');
+                });
+        }
+    }, [token, dispatch]);
+
     const handleSave = async (event) => {
-        event.preventDefault(); // Empêcher le rechargement de la page
+        event.preventDefault();
 
         if (!isValidName(userName)) {
             setErrorMessage("Nom d'utilisateur invalide");
@@ -22,11 +44,11 @@ function User ({onUsernameChange}) { // Ajout de la prop onUsernameChange
         }
 
         try {
-            const updatedUser = await handleSubmitUsername(userName, token); // Utiliser le bon nom et token
+            const updatedUser = await handleSubmitUsername(userName, token);
             
             if (updatedUser && updatedUser.userName) {
-                dispatch(updateUsername(updatedUser.userName)); // Mettre à jour dans le store Redux
-                setDisplay(true); // Revenir à l'affichage initial après la sauvegarde
+                dispatch(updateUsername(updatedUser.userName));
+                setDisplay(true);  // Revenir à l'affichage initial après la sauvegarde
                 if (onUsernameChange) {
                     onUsernameChange(updatedUser.userName); // Notifie le parent du changement
                 }
@@ -41,11 +63,11 @@ function User ({onUsernameChange}) { // Ajout de la prop onUsernameChange
 
     return (
         <div className="header">
-            { display ? 
+            {display ? (
                 <div>
                     <button className="edit-button" onClick={() => setDisplay(!display)}>Edit Name</button>
                 </div>
-                :
+            ) : (
                 <div>
                     <h2>Edit user info</h2>
                     <form>
@@ -54,7 +76,7 @@ function User ({onUsernameChange}) { // Ajout de la prop onUsernameChange
                             <input
                                 type="text"
                                 id="username"
-                                value={userName} // Utiliser la valeur contrôlée
+                                value={userName}  // Rempli avec la donnée récupérée
                                 onChange={(event) => setUserName(event.target.value)}
                             />
                         </div>
@@ -62,18 +84,18 @@ function User ({onUsernameChange}) { // Ajout de la prop onUsernameChange
                             <label htmlFor="firstname">First name:</label>
                             <input
                                 type="text"
-                                id="firstname" 
-                                value={userData.firstname}
-                                disabled={true}
+                                id="firstname"
+                                value={firstName} // Rempli avec la donnée récupérée
+                                disabled={true}   // Désactivé pour ne pas être modifiable
                             />
                         </div>
                         <div className="edit-input">
                             <label htmlFor="lastname">Last name:</label>
                             <input
                                 type="text"
-                                id="lastname" 
-                                value={userData.lastname}
-                                disabled={true}
+                                id="lastname"
+                                value={lastName}  // Rempli avec la donnée récupérée
+                                disabled={true}   // Désactivé pour ne pas être modifiable
                             />
                         </div>
                         <div className="buttons">
@@ -83,9 +105,9 @@ function User ({onUsernameChange}) { // Ajout de la prop onUsernameChange
                         {errorMessage && <p className="error-message">{errorMessage}</p>}
                     </form>
                 </div>
-            }
+            )}
         </div>
-    )
+    );
 }
 
 export default User;
